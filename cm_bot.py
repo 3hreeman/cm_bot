@@ -1,11 +1,7 @@
 #-*- coding: utf-8 -*-
-import sys
+import sys, pymysql, random, json, time
 from slacker import Slacker
-import pymysql
-import random
 from websocket import create_connection
-import json
-import time
 from konlpy.tag import Kkma
 from konlpy.utils import pprint
 
