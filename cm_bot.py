@@ -1,5 +1,5 @@
 #-*- coding: utf-8 -*-
-import sys, pymysql, random, json, time
+import sys, pymysql, random, json, time, argparse, os
 from slacker import Slacker
 from websocket import create_connection
 from konlpy.tag import Kkma
@@ -8,30 +8,48 @@ from konlpy.utils import pprint
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
+channels = {}
+
 def init_data():
-    f = open('db_info.json', 'r')
+    parser = argparse.ArgumentParser(description='chicken master bot')
+
+    parser.add_argument('-db', metavar='DB_INFO', type=str, required=True, help='mysql user info')
+    parser.add_argument('-q', metavar='QUERY_INFO', type=str, required=True, help='mysql query list')
+    parser.add_argument('-t', metavar='TOKEN_INFO', type=str, required=True, help='slack bot token info')
+
+    args = vars(parser.parse_args())
+
+    if not os.path.exists(args['db']):
+        print(args['db'] + ' does not exist')
+        sys.exit(-1)
+    if not os.path.exists(args['q']):
+        print(args['q'] + ' does not exist')
+        sys.exit(-1)
+    if not os.path.exists(args['t']):
+        print(args['t'] + ' does not exist')
+        sys.exit(-1)
+    f = open(args['db'], 'r')
     info = json.loads(f.read())
     f.close()
-    qf = open('query.json', 'r')
+    qf = open(args['q'], 'r')
     global query
     query=json.loads(qf.read())
-
     qf.close()
-    global dev_channel
-    dev_channel='#jstdio_dev'
-    global gen_channel
-    gen_channel='#general'
-    global cur_channel
-    cur_channel='#jstdio_dev'
-    global job_channel
-    job_channel='#job'
-    global token
+    global channels
+    channels['dev'] = '#jstdio_dev'
+    channels['gen'] = '#general'
+    channels['job'] = '#job'
+
     sql_conn = pymysql.connect(host=info['host'], user=info['user'], password=info['password'], db=info['db'], charset=info['charset'], use_unicode=True)
     global curs
     curs = sql_conn.cursor(pymysql.cursors.DictCursor)
+    
     global token
-    token = init_bot_token()
-    token = token[0]['value']
+    tf = open(args['t'], 'r')
+    token_info = json.loads(tf.read())
+    tf.close()
+    token = token_info['value']
+    
     init_bot_chat()
     global shop_data
     shop_data = init_shop_data()
@@ -75,7 +93,6 @@ def init_bot_token():
 def get_bot_chat():
     return chat_msg[random.randrange(len(chat_msg))]
 
-
 def get_bot_reply():
     return reply_msg[random.randrange(len(reply_msg))]
 
@@ -85,7 +102,6 @@ def get_bot_greet():
 def send_msg_to_channel(channel, msg):
     print("send msg to channel ["+channel+"] >> "+msg)
     slack.chat.post_message(channel, msg)
-
 
 def get_shop_by_name(name):
     for shop in shop_data:
@@ -98,8 +114,6 @@ def get_random_shop():
     msg = recom_msg[random.randrange(len(recom_msg))] % (shop['name'], shop['best_menu'], shop['phone'])
     send_msg_to_channel(get_channel(), msg)
      
-        
-
 def show_all_shop_data():
     for shop in shop_data:
         msg = shop['name']+" "+shop['phone']+" "+shop['best_menu']
