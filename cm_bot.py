@@ -9,7 +9,6 @@ import time
 from konlpy.tag import Kkma
 from konlpy.utils import pprint
 
-
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
@@ -17,12 +16,11 @@ def init_data():
     f = open('db_info.json', 'r')
     info = json.loads(f.read())
     f.close()
-    _host = info['host']
-    _user = info['user']
-    _password = info['user']
-    _db = info['db']
-    _charset = info['charset']
-    print(_host, _user, _password, _db, _charset)
+    qf = open('query.json', 'r')
+    global query
+    query=json.loads(qf.read())
+
+    qf.close()
     global dev_channel
     dev_channel='#jstdio_dev'
     global gen_channel
@@ -31,16 +29,20 @@ def init_data():
     cur_channel='#jstdio_dev'
     global job_channel
     job_channel='#job'
+    global token
     sql_conn = pymysql.connect(host=info['host'], user=info['user'], password=info['password'], db=info['db'], charset=info['charset'], use_unicode=True)
     global curs
     curs = sql_conn.cursor(pymysql.cursors.DictCursor)
+    global token
+    token = init_bot_token()
+    token = token[0]['value']
     init_bot_chat()
     global shop_data
     shop_data = init_shop_data()
     sql_conn.close()
 
 def init_bot_chat():
-    sql = "select `type`, `text` from bot_chat"
+    sql = query['get_bot_chat']
     curs.execute(sql)
     rows = curs.fetchall()
     global reply_msg
@@ -63,11 +65,16 @@ def init_bot_chat():
             greet_msg.append(row['text'])
 
 def init_shop_data():
-    sql = "select * from shop_info"
+    sql = query['get_shop_data']
     curs.execute(sql)
     rows = curs.fetchall()
     return rows
 
+def init_bot_token():
+    sql = query['get_bot_token']
+    curs.execute(sql)
+    rows = curs.fetchall()
+    return rows
 
 def get_bot_chat():
     return chat_msg[random.randrange(len(chat_msg))]
@@ -99,11 +106,6 @@ def get_random_shop():
 
 def show_all_shop_data():
     for shop in shop_data:
-        #name.append(shop['name'])
-        #phone.append(shop['phone'])
-        #t_str = shop['start_time'] + "~" + shop['end_time']
-        #t.append(t_str)
-        #best.append(shop['best_menu'])
         msg = shop['name']+" "+shop['phone']+" "+shop['best_menu']
         send_msg_to_channel(get_channel(), msg)
 
@@ -113,7 +115,7 @@ def parse_message(txt):
         if txt.find('닥쳐') != -1 or txt.find('꺼져') != -1:
             send_msg_to_channel(get_channel(), 'ok...bye...')
             return -1
-        elif txt.find('안녕') != -1 or txt.find('하이') != -1 or txt.find('ㅎㅇ') != -1:
+        elif txt.find('안뇽') != -1 or txt.find('안녕') != -1 or txt.find('하이') != -1 or txt.find('ㅎㅇ') != -1:
             send_msg_to_channel(get_channel(), get_bot_greet())
         elif txt.find('뭐먹') != -1 or txt.find('머먹') != -1 or txt.find('추천') != -1 or txt.find('어느') != -1 or txt.find('어떤') != -1:
             get_random_shop()
@@ -124,13 +126,6 @@ def parse_message(txt):
     elif txt.find('ㅋㅋㅋㅋ')!= -1 or txt.find('zzzz')!=-1:
         send_msg_to_channel(get_channel(), '병신같이 처웃지마ㅋㅋㅋㅋㅋㅋㅋㅋ웃으니까 치킨땡기잖앜ㅋㅋㅋㅋㅋㅋㅋㅋ')
     return 1;
-    
-
-#dev_channel = '#jstdio_dev'
-#gen_channel = '#general'
-#cur_channel = ''
-token = 'xoxb-208163831491-lZfZF6cmn9H8hYBGmYNnhATu'
-slack = Slacker(token)
 
 def get_channel():
     #print('get_channel::', cur_channel)
@@ -149,14 +144,10 @@ def set_cur_channel(cn):
     cur_channel = cn
 
 def Main():
-
-#    slack = Slacker(token)
-    init_data()
-
-    #message = init_bot_chat()
-    #shop_info = init_shop_info()
+#    init_data()
+    
     print '====<System>: bot initiated===='
-    send_msg_to_channel(dev_channel, get_bot_chat())
+    send_msg_to_channel(get_channel(), get_bot_chat())
     response = slack.rtm.connect()
     endpoint = response.body['url']
     slack_socket = create_connection(endpoint)
@@ -176,6 +167,6 @@ def Main():
                         break
     print '====<System>: bot is down===='
 
-
-
+init_data()
+slack = Slacker(token)
 Main()
